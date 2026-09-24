@@ -1,0 +1,59 @@
+.pdf-page-surface {
+  position: relative;
+  flex: none;
+  background: white;
+  box-shadow: 0 10px 22px rgb(0 0 0 / 0.12);
+}
+
+.pdf-text-layer,
+.pdf-link-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.pdf-text-layer {
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  user-select: text;
+}
+
+.pdf-text-layer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0 0;
+}
+
+.pdf-text-layer ::selection {
+  background: rgb(35 98 245 / 0.35);
+}
+
+.pdf-text-layer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+}
+
+.pdf-link-layer {
+  pointer-events: none;
+}
+
+.pdf-page-link {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.pdf-page-link:hover {
+  outline: 1px solid rgb(35 98 245 / 0.5);
+  background: rgb(35 98 245 / 0.1);
+}
+
+.pdf-page-link:focus-visible {
+  outline: 2px solid rgb(35 98 245);
+}

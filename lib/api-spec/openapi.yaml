@@ -1,0 +1,180 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: pdf
+    description: Webpage PDF generation
+paths:
+  /pdf/healthz:
+    get:
+      operationId: pdfRendererHealthCheck
+      tags: [pdf]
+      summary: Self-test headless Chromium and PDF output without external navigation
+      responses:
+        "200":
+          description: Renderer ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PdfRendererHealth"
+        "503":
+          description: Renderer unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /pdf/progress/{requestId}:
+    get:
+      operationId: getPdfProgress
+      tags: [pdf]
+      summary: Read the current stage of an active conversion
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Current progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PdfProgress"
+  /pdf:
+    post:
+      operationId: createPdf
+      tags: [pdf]
+      summary: Render a public webpage as a PDF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PdfInput"
+      responses:
+        "200":
+          description: Generated PDF
+          headers:
+            X-Expansion-Summary:
+              description: JSON-encoded expansion counts and carousel detected, captured, and skipped counts; absent for normal captures.
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid input or inaccessible URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Webpage could not be rendered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: PDF browser or renderer unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "504":
+          description: Navigation or rendering timed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+components:
+  schemas:
+    PdfInput:
+      type: object
+      additionalProperties: false
+      required: [url, pageSize, orientation]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        pageSize:
+          type: string
+          enum: [A4, Letter, Legal]
+        orientation:
+          type: string
+          enum: [portrait, landscape]
+        hideNotices:
+          type: boolean
+          default: true
+        expandedCapture:
+          type: boolean
+          default: false
+        requestId:
+          type: string
+          format: uuid
+    PdfProgress:
+      type: object
+      required: [stage, message]
+      properties:
+        stage:
+          type: string
+          enum: [starting, loading, removing, expanding, carousels, rendering, complete, error]
+        message:
+          type: string
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+    PdfRendererHealth:
+      type: object
+      required: [status, renderer]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        renderer:
+          type: string
+          enum: [ready]
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+

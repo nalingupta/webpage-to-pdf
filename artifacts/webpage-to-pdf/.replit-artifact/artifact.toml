@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Webpage to PDF"
+description = "A browser-based utility that turns public webpage URLs into downloadable PDFs with configurable paper size and orientation."
+version = "1.0.0"
+id = "artifacts/webpage-to-pdf"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21448
+
+[services.development]
+run = "pnpm --filter @workspace/webpage-to-pdf run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/webpage-to-pdf", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/webpage-to-pdf/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21448"
+BASE_PATH = "/"
