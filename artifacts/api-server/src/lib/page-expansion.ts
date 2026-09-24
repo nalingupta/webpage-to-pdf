@@ -301,7 +301,7 @@ export async function expandDisclosures(
       const state = await locator.evaluate(snapshot).catch(() => null);
       if (!state?.panelVisible) return;
       try {
-        const image = await page.screenshot({ type: "jpeg", quality: 82, fullPage: true, animations: "disabled" });
+        const image = await page.screenshot({ type: "jpeg", quality: 50, fullPage: true, animations: "disabled" });
         onSeparateState({ image, heading: `${previous.label || "Accordion"} — separate state` });
         capturedGroups.add(groupKey);
       } catch {

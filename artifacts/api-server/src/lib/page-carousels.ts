@@ -154,7 +154,7 @@ export async function collectCarouselSlides(
         const signatures = new Set<string>();
         await page.mouse.move(0, 0);
         await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()).catch(() => {});
-        const original = await root.screenshot({ type: "jpeg", quality: 80, timeout: 3_000 });
+        const original = await root.screenshot({ type: "jpeg", quality: 50, timeout: 3_000 });
         signatures.add(hash(original));
         for (let step = 1; step <= 12 && slides.length < 24; step++) {
           const currentRoot = scan.frame.locator(rootSelector).first();
@@ -178,7 +178,7 @@ export async function collectCarouselSlides(
           await page.mouse.move(0, 0);
           await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()).catch(() => {});
           const image = await scan.frame.locator(rootSelector).first().screenshot({
-            type: "jpeg", quality: 80, timeout: 3_000,
+            type: "jpeg", quality: 50, timeout: 3_000,
           });
           const signature = hash(image);
           if (signatures.has(signature)) {

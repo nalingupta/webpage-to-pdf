@@ -3,6 +3,7 @@ import { BlockList, isIP } from "node:net";
 import { errors as playwrightErrors } from "playwright-core";
 import { launchPdfBrowser } from "./chromium-runtime";
 import { printDesktopPage } from "./desktop-print";
+import { optimizePdf } from "./pdf-optimizer";
 import { PdfError } from "./pdf-errors";
 import { hideConsentNotices } from "./page-notices";
 import { expandDisclosures, unresolvedDisclosures } from "./page-expansion";
@@ -212,8 +213,10 @@ export async function renderPdf(
         progress("rendering", "Adding carousel slides to the PDF…");
         pdf = await appendCarouselPages(pdf, slides, format, landscape);
       }
+      progress("rendering", "Optimizing PDF size…");
+      pdf = await optimizePdf(pdf);
       if (pdf.length > 30 * 1024 * 1024) {
-        throw new PdfError("PDF_TOO_LARGE", 502, "This page produced a PDF larger than 30 MB.");
+        throw new PdfError("PDF_TOO_LARGE", 502, "This page could not be compressed below 30 MB.");
       }
       return pdf;
       } finally {
@@ -226,7 +229,7 @@ export async function renderPdf(
         deadline = setTimeout(() => reject(new PdfError(
           "RENDER_TIMEOUT", 504,
           "PDF capture took too long on this page. Try normal capture or a shorter page.",
-        )), options.expandedCapture ? 85_000 : 55_000);
+        )), options.expandedCapture ? 115_000 : 85_000);
       }),
     ]);
   } catch (cause) {

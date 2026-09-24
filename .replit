@@ -21,4 +21,4 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
-packages = ["chromium", "noto-fonts-color-emoji"]
+packages = ["chromium", "noto-fonts-color-emoji", "ghostscript"]

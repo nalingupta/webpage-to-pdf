@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { chromium } from "playwright-core";
 import { PDFDocument } from "pdf-lib";
 import { printDesktopPage } from "../src/lib/desktop-print";
+import { optimizePdf } from "../src/lib/pdf-optimizer";
 
 assert.match(
   execFileSync("fc-match", ["-f", "%{family}", "emoji"], { encoding: "utf8" }),
@@ -48,6 +49,33 @@ try {
     cardPositions[1].x < cardPositions[2].x, "Desktop cards must remain in three columns");
   assert.ok(Math.max(...cardPositions.map(({ y }) => y)) -
     Math.min(...cardPositions.map(({ y }) => y)) < 3, "Desktop cards must share the same row");
+
+  await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1400;
+    canvas.height = 1400;
+    canvas.style.width = "800px";
+    const context = canvas.getContext("2d")!;
+    const pixels = context.createImageData(canvas.width, canvas.height);
+    let seed = 12345;
+    for (let index = 0; index < pixels.data.length; index += 4) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      pixels.data[index] = seed & 255;
+      pixels.data[index + 1] = (seed >>> 8) & 255;
+      pixels.data[index + 2] = (seed >>> 16) & 255;
+      pixels.data[index + 3] = 255;
+    }
+    context.putImageData(pixels, 0, 0);
+    document.body.appendChild(canvas);
+  });
+  const imageHeavyPdf = await printDesktopPage(page, "A4", false, 1080);
+  const optimized = await optimizePdf(imageHeavyPdf);
+  assert.ok(optimized.length < imageHeavyPdf.length * 0.7,
+    `Low-resolution optimization should shrink image-heavy PDFs (${imageHeavyPdf.length} -> ${optimized.length})`);
+  assert.match(execFileSync("pdftotext", ["-", "-"], { input: optimized, encoding: "utf8" }), /FIRST CARD/,
+    "PDF text must remain selectable after optimization");
+  assert.ok((await PDFDocument.load(optimized)).getPage(0).node.Annots()?.size(),
+    "PDF hyperlinks must remain after optimization");
 } finally {
   await browser.close();
 }
