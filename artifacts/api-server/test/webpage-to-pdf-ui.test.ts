@@ -99,6 +99,7 @@ try {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
+        "Content-Disposition": 'inline; filename="fixture.example.pdf"',
         ...(summaryHeader ? { "X-Expansion-Summary": summaryHeader } : {}),
       },
       body: pdfBytes,
@@ -107,9 +108,19 @@ try {
     await page.goto(frontendUrl);
     const urlInput = page.getByPlaceholder("https://en.wikipedia.org/wiki/Typography");
     const preview = page.getByLabel("Generated PDF");
+    const downloadButton = page.getByTestId("button-download-pdf");
+    assert.equal(await downloadButton.count(), 0, "Download should only appear after a PDF is generated");
     await urlInput.fill("https://fixture.example/article");
     await page.getByRole("button", { name: "Create PDF" }).click();
     await preview.locator("canvas").first().waitFor();
+    const downloadPromise = page.waitForEvent("download");
+    await downloadButton.click();
+    const download = await downloadPromise;
+    assert.equal(download.suggestedFilename(), "fixture.example.pdf");
+    const downloadedChunks: Buffer[] = [];
+    for await (const chunk of await download.createReadStream()) downloadedChunks.push(Buffer.from(chunk));
+    assert.deepEqual(Buffer.concat(downloadedChunks), pdfBytes,
+      "Download must save the exact PDF bytes displayed in the preview");
     assert.equal(
       await page.getByLabel("Generated PDF").count(),
       1,

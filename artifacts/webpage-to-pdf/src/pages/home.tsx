@@ -6,7 +6,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Globe, FileText, Loader2, Printer } from 'lucide-react';
+import { Download, Globe, FileText, Loader2, Printer } from 'lucide-react';
 import { PdfRenderer } from '@/components/pdf-renderer';
 
 const formSchema = z.object({
@@ -21,7 +21,7 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("");
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
+  const [pdfResult, setPdfResult] = useState<{ data: Uint8Array; filename: string } | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -84,9 +84,12 @@ export default function Home() {
       }
 
       const bytes = new Uint8Array(await response.arrayBuffer());
+      const suggestedFilename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/i)?.[1];
+      const filename = suggestedFilename?.replace(/[^a-z0-9._-]/gi, '-') ||
+        `${new URL(values.url).hostname.replace(/[^a-z0-9.-]/gi, '-').slice(0, 90)}.pdf`;
       setProgress(100);
       setProgressText("PDF ready. Rendering preview…");
-      setPdfData(bytes);
+      setPdfResult({ data: bytes, filename });
       
       toast({
         title: "Success",
@@ -110,6 +113,20 @@ export default function Home() {
         setProgressText("");
       }, 1500);
     }
+  };
+
+  const downloadPdf = () => {
+    if (!pdfResult) return;
+    const blob = new Blob([new Uint8Array(pdfResult.data)], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = pdfResult.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // Keep the object URL alive long enough for the browser to finish saving.
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
   };
 
   return (
@@ -198,9 +215,20 @@ export default function Home() {
           </Form>
         </div>
 
-        {pdfData && (
+        {pdfResult && (
           <section className="w-full rounded-3xl border border-border/60 bg-card p-3 md:p-5 shadow-2xl shadow-primary/5">
-            <PdfRenderer data={pdfData} />
+            <div className="flex flex-col gap-3 px-1 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-foreground">Your PDF is ready</h2>
+                <p className="truncate text-sm text-muted-foreground" title={pdfResult.filename}>{pdfResult.filename}</p>
+              </div>
+              <Button type="button" variant="outline" onClick={downloadPdf} data-testid="button-download-pdf"
+                className="w-full gap-2 sm:w-auto">
+                <Download className="h-4 w-4" />
+                Download PDF
+              </Button>
+            </div>
+            <PdfRenderer data={pdfResult.data} />
           </section>
         )}
 
