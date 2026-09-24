@@ -12,6 +12,7 @@ export async function hideConsentNotices(page: Page): Promise<number> {
       "#CybotCookiebotDialog", "#CybotCookiebotDialogBodyUnderlay",
       "#didomi-host", ".qc-cmp2-container", ".osano-cm-window",
       "#sp_message_container", ".fc-consent-root",
+      "#transcend-consent-manager",
       "[data-testid='cookie-banner']", "[data-testid='cookie-consent']",
     ].join(",");
     const candidates = new Set<Element>();
@@ -38,12 +39,19 @@ export async function hideConsentNotices(page: Page): Promise<number> {
     const removed: Element[] = [];
     for (const el of candidates) {
       if (removed.some((parent) => parent.contains(el)) || el === document.body || el === document.documentElement) continue;
+      // A CMP host can have no layout box while a closed shadow tree paints its banner.
+      // Remove known consent roots before applying geometry checks to generic candidates.
+      const vendor = el.matches(known);
+      if (vendor) {
+        removed.push(el);
+        el.remove();
+        continue;
+      }
       const rect = el.getBoundingClientRect();
       const style = getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden" ||
           rect.width < 100 || rect.height < 30 || rect.bottom < 0 || rect.top > innerHeight) continue;
       const identity = `${el.id} ${typeof el.className === "string" ? el.className : ""}`;
-      const vendor = el.matches(known);
       const semantic = /(?:^|[\s_-])(cookie|consent|privacy|cmp)(?:[\s_-]|$)/i.test(identity);
       const text = (el.textContent || "").slice(0, 4000);
       const dialog = el.matches("dialog,[role='dialog'],[role='alertdialog'],[aria-modal='true']");
@@ -56,8 +64,8 @@ export async function hideConsentNotices(page: Page): Promise<number> {
         dialog ||
         (el.matches("[role='banner']") && rect.top > innerHeight * .5);
       const relevant = words.test(text) && (actions.test(text) || semantic);
-      if (!vendor && !(overlay && relevant && (semantic || dialog || (text.length < 2500 && hasConsentAction)))) continue;
-      if (!vendor && rect.width * rect.height > innerWidth * innerHeight * .92 && !semantic) continue;
+      if (!(overlay && relevant && (semantic || dialog || (text.length < 2500 && hasConsentAction)))) continue;
+      if (rect.width * rect.height > innerWidth * innerHeight * .92 && !semantic) continue;
       removed.push(el);
       el.remove();
     }
